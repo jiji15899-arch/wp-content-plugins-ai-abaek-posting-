@@ -1,5 +1,5 @@
 /**
- * AI 아백 포스팅 - 관리자 JavaScript
+ * AI 아백 포스팅 - 관리자 JavaScript (수정됨)
  */
 
 (function($) {
@@ -47,21 +47,36 @@
      * 메타박스 콘텐츠 생성 (수정된 버전)
      */
     async function generateMetaboxContent(isQuick) {
-        // [수정] 1순위: 메타박스 주제 입력창 (#abaek-meta-topic), 2순위: 워드프레스 제목 필드
+        // 1. 제목 가져오기 (구텐베르크 우선 확인)
+        let wpTitle = '';
+        if (typeof wp !== 'undefined' && wp.data && wp.data.select('core/editor')) {
+            // 구텐베르크
+            wpTitle = wp.data.select('core/editor').getEditedPostAttribute('title');
+        } else {
+            // 클래식 에디터
+            wpTitle = $('#title').val() || $('#post-title-0').val();
+        }
+
+        // 메타박스 주제 입력 확인
         const metaTopic = $('#abaek-meta-topic').val() ? $('#abaek-meta-topic').val().trim() : '';
-        const wpTitle = $('#title').val() || $('#post-title-0').val();
-        
-        // 메타박스 주제가 있으면 그것을, 없으면 WP 제목을 사용
         const title = metaTopic || (wpTitle ? wpTitle.trim() : '');
         
         if (!title) {
             alert('먼저 글 주제나 제목을 입력하세요.');
-            // 메타박스 내 주제 입력칸이 있다면 그곳으로 포커스 이동, 없다면 기본 제목창으로 이동
             if ($('#abaek-meta-topic').length > 0) {
                 $('#abaek-meta-topic').focus();
             } else {
-                $('#title, #post-title-0').focus();
+                // 구텐베르크 제목 입력창 포커스 시도
+                $('.editor-post-title__input').focus();
+                // 클래식 에디터 포커스
+                $('#title').focus();
             }
+            return;
+        }
+        
+        // Puter 객체 확인
+        if (typeof puter === 'undefined') {
+            alert('Puter.js가 로드되지 않았습니다. 페이지를 새로고침 하거나 인터넷 연결을 확인해주세요.');
             return;
         }
         
@@ -82,7 +97,7 @@
         }, isQuick ? 200 : 500);
         
         try {
-            // 프롬프트 생성 (기존 함수 활용)
+            // 프롬프트 생성
             const prompt = buildPrompt(title, mode, language, length, isQuick, [], []);
             
             updateMetaboxProgressText('Puter AI 생성 중...');
@@ -98,19 +113,31 @@
             const processed = processContent(aiContent, [], []);
             const scores = calculateScores(aiContent, mode, 0);
             
-            // 에디터에 삽입
-            if (wp.data && wp.data.select('core/editor')) {
-                // Gutenberg 에디터
-                wp.data.dispatch('core/editor').editPost({
-                    title: processed.title
-                });
-                wp.data.dispatch('core/block-editor').resetBlocks(
-                    wp.blocks.parse(processed.html)
-                );
+            // 2. 에디터에 삽입 (핵심 수정 사항)
+            if (typeof wp !== 'undefined' && wp.data && wp.data.select('core/editor') && wp.blocks) {
+                // --- 구텐베르크 (Gutenberg) ---
+                const { dispatch } = wp.data;
+                const { rawHandler } = wp.blocks; 
+                
+                // 제목 업데이트 (메타박스에서 주제를 입력했을 경우)
+                if (processed.title && (!wpTitle || metaTopic)) {
+                    dispatch('core/editor').editPost({ title: processed.title });
+                }
+
+                // HTML을 블록으로 변환 (rawHandler 사용 필수)
+                const blocks = rawHandler({ HTML: processed.html });
+                
+                // 에디터 내용 교체
+                dispatch('core/block-editor').resetBlocks(blocks);
+
             } else if (typeof tinymce !== 'undefined' && tinymce.activeEditor) {
-                // Classic 에디터
-                $('#title').val(processed.title);
+                // --- 클래식 에디터 (TinyMCE) ---
+                if (processed.title) $('#title').val(processed.title);
                 tinymce.activeEditor.setContent(processed.html);
+            } else {
+                // --- 텍스트 에디터 Fallback ---
+                if (processed.title) $('#title').val(processed.title);
+                $('#content').val(processed.html);
             }
             
             // 결과 표시
@@ -182,14 +209,20 @@
                         $('#abaek-meta-thumb-preview').fadeIn();
                         
                         // 대표 이미지로 설정
-                        if (wp.data && wp.data.select('core/editor')) {
+                        if (typeof wp !== 'undefined' && wp.data && wp.data.select('core/editor')) {
+                            // 구텐베르크
                             wp.data.dispatch('core/editor').editPost({
                                 featured_media: response.data.id
                             });
                         } else {
-                            // Classic 에디터 - Featured Image 설정
-                            $('#set-post-thumbnail').html('<img src="' + response.data.url + '">');
-                            $('#postimagediv').removeClass('closed');
+                            // Classic 에디터 - Featured Image HTML 업데이트 (WP 기본 방식)
+                            // 이 부분은 테마나 WP 버전에 따라 다를 수 있으나, 일반적으로 아래 ID를 사용
+                            if ($('#set-post-thumbnail').length) {
+                                $('#set-post-thumbnail').html('<img src="' + response.data.url + '" style="max-width:100%;">');
+                                $('#remove-post-thumbnail').show();
+                            }
+                            // hidden input 값 설정 (일부 환경용)
+                            $('#_thumbnail_id').val(response.data.id);
                         }
                         
                         hideMetaboxProgress();
@@ -217,7 +250,7 @@
     }
     
     /**
-     * 메타박스 진행 상태
+     * 메타박스 진행 상태 UI
      */
     function showMetaboxProgress(text, percent) {
         $('#abaek-meta-progress-text').text(text);
@@ -347,7 +380,7 @@
     }
     
     /**
-     * AI 콘텐츠 생성
+     * AI 콘텐츠 생성 (메인 페이지용)
      */
     async function generateContent(isQuick) {
         const title = $('#post-title').val().trim();
@@ -432,7 +465,7 @@
     }
     
     /**
-     * AI 프롬프트 생성
+     * AI 프롬프트 생성 (공통)
      */
     function buildPrompt(title, mode, language, length, isQuick, adCodes, adPositions) {
         const isKorean = language === 'ko';
@@ -584,7 +617,7 @@
     }
     
     /**
-     * 광고 삽입
+     * 광고 삽입 로직
      */
     function insertAds(content, adCodes, adPositions) {
         // 광고 HTML 생성
@@ -597,7 +630,7 @@
 `;
         });
         
-        // 단락 분할
+        // 단락 분할 (헤딩, 문단, 리스트, 테이블 기준)
         const paragraphs = content.split(/(<h[23][^>]*>.*?<\/h[23]>|<p>.*?<\/p>|<ul>.*?<\/ul>|<ol>.*?<\/ol>|<table>.*?<\/table>)/is).filter(p => p.trim());
         
         let result = '';
@@ -672,7 +705,7 @@
     }
     
     /**
-     * 썸네일 생성
+     * 썸네일 생성 (메인 페이지용)
      */
     async function generateThumbnail() {
         const prompt = $('#thumbnail-prompt').val().trim();
@@ -877,7 +910,7 @@
     }
     
     /**
-     * 워드프레스 포스트 생성
+     * 워드프레스 포스트 생성 (메인 페이지용)
      */
     function createWordPressPost() {
         if (!generatedContent) {
@@ -955,7 +988,7 @@
     }
     
     /**
-     * 진행 상태 표시
+     * 진행 상태 표시 (메인 페이지용)
      */
     function showProgress(title, message) {
         $('#progress-title').text(title);
