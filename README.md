@@ -280,7 +280,7 @@ GPL v2 or later
 ## 👨‍💻 개발자 정보
 
 **Abaek Team**
-- Website: https://abaek.ai
+- Website: https://plugin.jiwungumwp100.dpdns.org
 - Version: 1.0.0
 - Last Updated: 2026-01-18
 
@@ -291,7 +291,7 @@ GPL v2 or later
 문제가 발생하거나 기능 제안이 있으시면:
 1. 워드프레스 관리자 → AI 아백 포스팅 → 문의
 2. GitHub Issues
-3. support@abaek.ai
+3. supportchoisw@gmail.com
 
 ---
 
