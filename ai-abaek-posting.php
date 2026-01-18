@@ -98,15 +98,28 @@ class AI_Abaek_Posting {
         );
     }
     
+    // ... 기존 코드 위쪽 생략 ...
+
     public function render_metabox($post) {
         wp_nonce_field('abaek_metabox', 'abaek_metabox_nonce');
         ?>
         <div class="abaek-metabox-wrap">
             
             <div class="abaek-metabox-section">
+                <div class="abaek-metabox-group">
+                    <label class="abaek-metabox-label" for="abaek-meta-topic">
+                        <span class="dashicons dashicons-lightbulb"></span>
+                        글 주제 / 제목
+                    </label>
+                    <input type="text" id="abaek-meta-topic" class="abaek-metabox-input" placeholder="예: 2026년 청년도약계좌 신청방법" value="">
+                    <p class="abaek-metabox-desc">비어있으면 상단 글 제목을 사용합니다.</p>
+                </div>
+
+                <div class="abaek-metabox-divider"></div>
+
                 <label class="abaek-metabox-label">
-                    <span class="dashicons dashicons-edit"></span>
-                    콘텐츠 생성
+                    <span class="dashicons dashicons-admin-settings"></span>
+                    생성 설정
                 </label>
                 
                 <select id="abaek-meta-mode" class="abaek-metabox-select">
@@ -118,27 +131,29 @@ class AI_Abaek_Posting {
                 </select>
                 
                 <div class="abaek-metabox-row">
-                    <select id="abaek-meta-lang" class="abaek-metabox-select-small">
+                    <select id="abaek-meta-lang" class="abaek-metabox-select-half">
                         <option value="ko">🇰🇷 한국어</option>
                         <option value="en">🇺🇸 English</option>
                     </select>
                     
-                    <select id="abaek-meta-length" class="abaek-metabox-select-small">
+                    <select id="abaek-meta-length" class="abaek-metabox-select-half">
                         <option value="3000">3천자</option>
                         <option value="5000" selected>5천자</option>
                         <option value="8000">8천자</option>
                     </select>
                 </div>
                 
-                <button type="button" id="abaek-meta-generate" class="button button-primary button-large abaek-metabox-btn">
-                    <span class="dashicons dashicons-admin-customizer"></span>
-                    AI 콘텐츠 생성
-                </button>
-                
-                <button type="button" id="abaek-meta-quick" class="button button-secondary button-large abaek-metabox-btn">
-                    <span class="dashicons dashicons-update"></span>
-                    빠른 생성 (10초)
-                </button>
+                <div class="abaek-btn-group">
+                    <button type="button" id="abaek-meta-generate" class="button button-primary button-large abaek-metabox-btn">
+                        <span class="dashicons dashicons-admin-customizer"></span>
+                        AI 콘텐츠 생성
+                    </button>
+                    
+                    <button type="button" id="abaek-meta-quick" class="button button-secondary button-large abaek-metabox-btn">
+                        <span class="dashicons dashicons-update"></span>
+                        빠른 생성 (10초)
+                    </button>
+                </div>
             </div>
             
             <div class="abaek-metabox-divider"></div>
@@ -171,8 +186,6 @@ class AI_Abaek_Posting {
                 </div>
             </div>
             
-            <div class="abaek-metabox-divider"></div>
-            
             <div id="abaek-meta-progress" class="abaek-metabox-progress" style="display:none;">
                 <div class="abaek-metabox-progress-icon">⏳</div>
                 <p id="abaek-meta-progress-text" class="abaek-metabox-progress-text">AI 생성 중...</p>
@@ -203,24 +216,21 @@ class AI_Abaek_Posting {
                 </div>
             </div>
             
-            <div class="abaek-metabox-footer">
-                <p class="abaek-metabox-tip">
-                    💡 <strong>팁:</strong> 제목을 먼저 입력하면 더 좋은 콘텐츠가 생성됩니다.
-                </p>
-                <a href="<?php echo admin_url('admin.php?page=ai-abaek-posting'); ?>" class="abaek-metabox-link">
-                    전체 기능 보기 →
-                </a>
-            </div>
-            
         </div>
         
         <style>
+        /* 메타박스 전용 반응형 스타일 */
         .abaek-metabox-wrap {
             margin: -6px -12px -12px;
+            background: #fff;
         }
         
         .abaek-metabox-section {
-            padding: 15px;
+            padding: 12px;
+        }
+
+        .abaek-metabox-group {
+            margin-bottom: 15px;
         }
         
         .abaek-metabox-label {
@@ -229,193 +239,113 @@ class AI_Abaek_Posting {
             gap: 6px;
             font-weight: 600;
             font-size: 13px;
-            margin-bottom: 10px;
+            margin-bottom: 8px;
             color: #1d2327;
         }
         
-        .abaek-metabox-label .dashicons {
-            font-size: 16px;
-            width: 16px;
-            height: 16px;
-        }
-        
+        .abaek-metabox-input,
         .abaek-metabox-select,
         .abaek-metabox-textarea {
             width: 100%;
-            margin-bottom: 10px;
+            padding: 8px;
+            border: 1px solid #dcdcde;
+            border-radius: 4px;
+            box-sizing: border-box;
+            font-size: 13px;
+            margin-bottom: 5px;
+        }
+
+        .abaek-metabox-input:focus,
+        .abaek-metabox-select:focus,
+        .abaek-metabox-textarea:focus {
+            border-color: #2271b1;
+            box-shadow: 0 0 0 1px #2271b1;
+            outline: none;
+        }
+
+        .abaek-metabox-desc {
+            font-size: 11px;
+            color: #646970;
+            margin: 2px 0 0 0;
         }
         
+        /* 반응형 Row: 좁을 땐 세로, 넓을 땐 가로 */
         .abaek-metabox-row {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
+            display: flex;
+            flex-wrap: wrap;
             gap: 8px;
             margin-bottom: 10px;
         }
         
-        .abaek-metabox-select-small {
-            width: 100%;
+        .abaek-metabox-select-half {
+            flex: 1 1 120px; /* 최소 120px, 공간 남으면 늘어남 */
+            width: auto;
+            min-width: 0; /* Flexbox overflow 방지 */
+            margin-bottom: 0;
         }
         
+        .abaek-btn-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
         .abaek-metabox-btn {
             width: 100%;
-            height: auto !important;
-            padding: 10px !important;
-            margin-bottom: 8px !important;
-            display: flex !important;
-            align-items: center;
             justify-content: center;
-            gap: 6px;
-            font-weight: 600 !important;
-        }
-        
-        .abaek-metabox-btn .dashicons {
-            font-size: 16px;
-            width: 16px;
-            height: 16px;
+            margin: 0 !important;
+            height: 36px !important;
+            line-height: 34px !important;
         }
         
         .abaek-metabox-divider {
             height: 1px;
-            background: #dcdcde;
+            background: #f0f0f1;
             margin: 0;
         }
         
+        /* 썸네일 미리보기 */
         .abaek-metabox-thumb-preview {
             margin-top: 10px;
-            border: 2px dashed #dcdcde;
+            border: 1px dashed #c3c4c7;
             border-radius: 4px;
-            padding: 10px;
+            padding: 8px;
             text-align: center;
+            background: #f6f7f7;
         }
         
         .abaek-metabox-thumb-preview img {
             max-width: 100%;
             height: auto;
             border-radius: 4px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
         }
-        
-        .abaek-metabox-thumb-info {
-            margin: 8px 0 0 0;
-            font-size: 12px;
-            color: #50575e;
-        }
-        
-        .abaek-metabox-progress {
-            padding: 20px 15px;
-            text-align: center;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-        }
-        
-        .abaek-metabox-progress-icon {
-            font-size: 32px;
-            margin-bottom: 10px;
-            animation: abaek-rotate 2s linear infinite;
-        }
-        
-        @keyframes abaek-rotate {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
-        }
-        
-        .abaek-metabox-progress-text {
-            font-weight: 600;
-            margin: 0 0 10px 0;
-        }
-        
-        .abaek-metabox-progress-bar {
-            height: 6px;
-            background: rgba(255, 255, 255, 0.3);
-            border-radius: 10px;
-            overflow: hidden;
-            margin-bottom: 8px;
-        }
-        
-        .abaek-metabox-progress-fill {
-            height: 100%;
-            background: white;
-            border-radius: 10px;
-            transition: width 0.5s ease;
-            width: 0%;
-        }
-        
-        .abaek-metabox-progress-percent {
-            font-size: 18px;
-            font-weight: 700;
-            margin: 0;
-        }
-        
-        .abaek-metabox-result {
-            padding: 15px;
-            background: #f0fdf4;
-            border-left: 4px solid #22c55e;
-        }
-        
-        .abaek-metabox-result-header {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            font-weight: 600;
-            font-size: 14px;
-            color: #166534;
-            margin-bottom: 12px;
-        }
-        
+
+        /* 점수판 */
         .abaek-metabox-scores {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
-            gap: 8px;
+            gap: 5px;
         }
         
         .abaek-metabox-score {
             text-align: center;
-            padding: 8px;
+            padding: 6px;
             background: white;
+            border: 1px solid #dcdcde;
             border-radius: 4px;
         }
-        
-        .score-label {
-            display: block;
-            font-size: 11px;
-            color: #6b7280;
-            margin-bottom: 4px;
-        }
-        
-        .score-value {
-            display: block;
-            font-size: 18px;
-            font-weight: 700;
-            color: #667eea;
-        }
-        
-        .abaek-metabox-footer {
-            padding: 15px;
-            background: #f9fafb;
-        }
-        
-        .abaek-metabox-tip {
-            font-size: 12px;
-            line-height: 1.5;
-            color: #6b7280;
-            margin: 0 0 10px 0;
-        }
-        
-        .abaek-metabox-link {
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-            font-size: 12px;
-            font-weight: 600;
-            color: #667eea;
-            text-decoration: none;
-        }
-        
-        .abaek-metabox-link:hover {
-            color: #5568d3;
+
+        /* 로딩바 */
+        .abaek-metabox-progress {
+            padding: 20px;
+            text-align: center;
+            background: #f0f0f1;
         }
         </style>
         <?php
     }
+// ... 기존 코드 아래 생략 ...//
     
     public function render_main_page() {
         ?>
