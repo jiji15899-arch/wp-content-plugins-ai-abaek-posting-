@@ -12,6 +12,242 @@
     
     $(document).ready(function() {
         
+        // 메인 페이지인지 메타박스인지 확인
+        const isMetabox = $('#abaek-metabox').length > 0;
+        
+        if (isMetabox) {
+            initMetabox();
+        } else {
+            initMainPage();
+        }
+        
+    });
+    
+    /**
+     * 메타박스 초기화
+     */
+    function initMetabox() {
+        // 콘텐츠 생성
+        $('#abaek-meta-generate').on('click', function() {
+            generateMetaboxContent(false);
+        });
+        
+        // 빠른 생성
+        $('#abaek-meta-quick').on('click', function() {
+            generateMetaboxContent(true);
+        });
+        
+        // 썸네일 생성
+        $('#abaek-meta-thumb-generate').on('click', function() {
+            generateMetaboxThumbnail();
+        });
+    }
+    
+    /**
+     * 메타박스 콘텐츠 생성
+     */
+    async function generateMetaboxContent(isQuick) {
+        const title = $('#title').val().trim() || $('#post-title-0').val().trim();
+        
+        if (!title) {
+            alert('먼저 글 제목을 입력하세요.');
+            $('#title, #post-title-0').focus();
+            return;
+        }
+        
+        const mode = $('#abaek-meta-mode').val();
+        const language = $('#abaek-meta-lang').val();
+        const length = $('#abaek-meta-length').val();
+        
+        // UI 업데이트
+        showMetaboxProgress('AI 생성 중...', 0);
+        disableMetaboxButtons();
+        
+        let progress = 0;
+        const progressInterval = setInterval(() => {
+            progress += isQuick ? 10 : 5;
+            if (progress <= 90) {
+                updateMetaboxProgress(progress);
+            }
+        }, isQuick ? 200 : 500);
+        
+        try {
+            const prompt = buildPrompt(title, mode, language, length, isQuick, [], []);
+            
+            updateMetaboxProgressText('Puter AI 생성 중...');
+            
+            const response = await puter.ai.chat(prompt);
+            const aiContent = response.message.content;
+            
+            clearInterval(progressInterval);
+            updateMetaboxProgress(100);
+            
+            updateMetaboxProgressText('에디터에 삽입 중...');
+            
+            const processed = processContent(aiContent, [], []);
+            const scores = calculateScores(aiContent, mode, 0);
+            
+            // 에디터에 삽입
+            if (wp.data && wp.data.select('core/editor')) {
+                // Gutenberg 에디터
+                wp.data.dispatch('core/editor').editPost({
+                    title: processed.title
+                });
+                wp.data.dispatch('core/block-editor').resetBlocks(
+                    wp.blocks.parse(processed.html)
+                );
+            } else if (typeof tinymce !== 'undefined' && tinymce.activeEditor) {
+                // Classic 에디터
+                $('#title').val(processed.title);
+                tinymce.activeEditor.setContent(processed.html);
+            }
+            
+            // 결과 표시
+            setTimeout(() => {
+                hideMetaboxProgress();
+                showMetaboxResult(scores);
+                enableMetaboxButtons();
+                alert('✅ 콘텐츠가 에디터에 삽입되었습니다!');
+            }, 500);
+            
+        } catch (error) {
+            clearInterval(progressInterval);
+            hideMetaboxProgress();
+            enableMetaboxButtons();
+            alert('AI 생성 중 오류가 발생했습니다: ' + error.message);
+            console.error('Puter AI Error:', error);
+        }
+    }
+    
+    /**
+     * 메타박스 썸네일 생성
+     */
+    async function generateMetaboxThumbnail() {
+        const prompt = $('#abaek-meta-thumb-prompt').val().trim();
+        const style = $('#abaek-meta-thumb-style').val();
+        
+        if (!prompt) {
+            alert('썸네일 설명을 입력하세요.');
+            return;
+        }
+        
+        showMetaboxProgress('썸네일 생성 중...', 0);
+        disableMetaboxButtons();
+        
+        let progress = 0;
+        const progressInterval = setInterval(() => {
+            progress += 15;
+            if (progress <= 90) {
+                updateMetaboxProgress(progress);
+            }
+        }, 200);
+        
+        try {
+            const blob = await createThumbnailCanvas(prompt, style);
+            
+            clearInterval(progressInterval);
+            updateMetaboxProgress(100);
+            
+            updateMetaboxProgressText('서버에 업로드 중...');
+            
+            const formData = new FormData();
+            formData.append('action', 'abaek_upload_thumbnail');
+            formData.append('nonce', abaekData.nonce);
+            formData.append('thumbnail', blob, 'thumbnail.jpg');
+            
+            $.ajax({
+                url: abaekData.ajaxUrl,
+                type: 'POST',
+                data: formData,
+                processData: false,
+                contentType: false,
+                success: function(response) {
+                    if (response.success) {
+                        thumbnailId = response.data.id;
+                        
+                        // 메타박스 미리보기
+                        $('#abaek-meta-thumb-img').attr('src', response.data.url);
+                        $('#abaek-meta-thumb-size').text(response.data.size + ' KB');
+                        $('#abaek-meta-thumb-preview').fadeIn();
+                        
+                        // 대표 이미지로 설정
+                        if (wp.data && wp.data.select('core/editor')) {
+                            wp.data.dispatch('core/editor').editPost({
+                                featured_media: response.data.id
+                            });
+                        } else {
+                            // Classic 에디터 - Featured Image 설정
+                            $('#set-post-thumbnail').html('<img src="' + response.data.url + '">');
+                            $('#postimagediv').removeClass('closed');
+                        }
+                        
+                        hideMetaboxProgress();
+                        enableMetaboxButtons();
+                        alert('✅ 썸네일이 대표 이미지로 설정되었습니다!');
+                    } else {
+                        alert('업로드 실패: ' + response.data);
+                        hideMetaboxProgress();
+                        enableMetaboxButtons();
+                    }
+                },
+                error: function() {
+                    alert('서버 오류가 발생했습니다.');
+                    hideMetaboxProgress();
+                    enableMetaboxButtons();
+                }
+            });
+            
+        } catch (error) {
+            clearInterval(progressInterval);
+            hideMetaboxProgress();
+            enableMetaboxButtons();
+            alert('썸네일 생성 오류: ' + error.message);
+        }
+    }
+    
+    /**
+     * 메타박스 진행 상태
+     */
+    function showMetaboxProgress(text, percent) {
+        $('#abaek-meta-progress-text').text(text);
+        updateMetaboxProgress(percent);
+        $('#abaek-meta-result').hide();
+        $('#abaek-meta-progress').show();
+    }
+    
+    function updateMetaboxProgress(percent) {
+        $('#abaek-meta-progress-fill').css('width', percent + '%');
+        $('#abaek-meta-progress-percent').text(percent + '%');
+    }
+    
+    function updateMetaboxProgressText(text) {
+        $('#abaek-meta-progress-text').text(text);
+    }
+    
+    function hideMetaboxProgress() {
+        $('#abaek-meta-progress').hide();
+    }
+    
+    function showMetaboxResult(scores) {
+        $('#abaek-meta-score-seo').text(scores.seo);
+        $('#abaek-meta-score-revenue').text(scores.revenue);
+        $('#abaek-meta-score-approval').text(scores.approval);
+        $('#abaek-meta-result').fadeIn();
+    }
+    
+    function disableMetaboxButtons() {
+        $('#abaek-meta-generate, #abaek-meta-quick, #abaek-meta-thumb-generate').prop('disabled', true);
+    }
+    
+    function enableMetaboxButtons() {
+        $('#abaek-meta-generate, #abaek-meta-quick, #abaek-meta-thumb-generate').prop('disabled', false);
+    }
+    
+    /**
+     * 메인 페이지 초기화
+     */
+    function initMainPage() {
+        
         // 통계 로드
         loadStats();
         
@@ -71,7 +307,7 @@
             createWordPressPost();
         });
         
-    });
+    } // initMainPage 끝
     
     /**
      * 광고 코드 슬롯 추가
