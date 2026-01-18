@@ -33,10 +33,12 @@ class AI_Abaek_Posting {
     private function __construct() {
         add_action('admin_menu', [$this, 'add_admin_menu']);
         add_action('admin_enqueue_scripts', [$this, 'enqueue_scripts']);
+        add_action('add_meta_boxes', [$this, 'add_meta_boxes']);
         add_action('wp_ajax_abaek_generate_content', [$this, 'ajax_generate_content']);
         add_action('wp_ajax_abaek_upload_thumbnail', [$this, 'ajax_upload_thumbnail']);
         add_action('wp_ajax_abaek_create_post', [$this, 'ajax_create_post']);
         add_action('wp_ajax_abaek_get_stats', [$this, 'ajax_get_stats']);
+        add_action('wp_ajax_abaek_insert_to_editor', [$this, 'ajax_insert_to_editor']);
     }
     
     public function add_admin_menu() {
@@ -52,7 +54,8 @@ class AI_Abaek_Posting {
     }
     
     public function enqueue_scripts($hook) {
-        if ('toplevel_page_ai-abaek-posting' !== $hook) {
+        // 메인 페이지와 글쓰기 페이지에서 모두 로드
+        if ('toplevel_page_ai-abaek-posting' !== $hook && 'post.php' !== $hook && 'post-new.php' !== $hook) {
             return;
         }
         
@@ -79,8 +82,339 @@ class AI_Abaek_Posting {
         wp_localize_script('abaek-admin-js', 'abaekData', [
             'ajaxUrl' => admin_url('admin-ajax.php'),
             'nonce' => wp_create_nonce('abaek_nonce'),
-            'pluginUrl' => ABAEK_PLUGIN_URL
+            'pluginUrl' => ABAEK_PLUGIN_URL,
+            'postId' => get_the_ID()
         ]);
+    }
+    
+    public function add_meta_boxes() {
+        add_meta_box(
+            'abaek-metabox',
+            '✨ AI 아백 포스팅',
+            [$this, 'render_metabox'],
+            ['post', 'page'],
+            'side',
+            'high'
+        );
+    }
+    
+    public function render_metabox($post) {
+        wp_nonce_field('abaek_metabox', 'abaek_metabox_nonce');
+        ?>
+        <div class="abaek-metabox-wrap">
+            
+            <div class="abaek-metabox-section">
+                <label class="abaek-metabox-label">
+                    <span class="dashicons dashicons-edit"></span>
+                    콘텐츠 생성
+                </label>
+                
+                <select id="abaek-meta-mode" class="abaek-metabox-select">
+                    <option value="adsense">💎 애드센스 승인용</option>
+                    <option value="subsidy">💰 지원금 글</option>
+                    <option value="pasona">🔥 파소나 수익형</option>
+                    <option value="seo">🚀 SEO 최적화</option>
+                    <option value="ad_insert">💸 광고 삽입형</option>
+                </select>
+                
+                <div class="abaek-metabox-row">
+                    <select id="abaek-meta-lang" class="abaek-metabox-select-small">
+                        <option value="ko">🇰🇷 한국어</option>
+                        <option value="en">🇺🇸 English</option>
+                    </select>
+                    
+                    <select id="abaek-meta-length" class="abaek-metabox-select-small">
+                        <option value="3000">3천자</option>
+                        <option value="5000" selected>5천자</option>
+                        <option value="8000">8천자</option>
+                    </select>
+                </div>
+                
+                <button type="button" id="abaek-meta-generate" class="button button-primary button-large abaek-metabox-btn">
+                    <span class="dashicons dashicons-admin-customizer"></span>
+                    AI 콘텐츠 생성
+                </button>
+                
+                <button type="button" id="abaek-meta-quick" class="button button-secondary button-large abaek-metabox-btn">
+                    <span class="dashicons dashicons-update"></span>
+                    빠른 생성 (10초)
+                </button>
+            </div>
+            
+            <div class="abaek-metabox-divider"></div>
+            
+            <div class="abaek-metabox-section">
+                <label class="abaek-metabox-label">
+                    <span class="dashicons dashicons-format-image"></span>
+                    썸네일 생성
+                </label>
+                
+                <textarea id="abaek-meta-thumb-prompt" class="abaek-metabox-textarea" rows="2" placeholder="썸네일 설명 입력..."></textarea>
+                
+                <select id="abaek-meta-thumb-style" class="abaek-metabox-select">
+                    <option value="professional">전문적</option>
+                    <option value="colorful">화려함</option>
+                    <option value="minimal">미니멀</option>
+                    <option value="dramatic">드라마틱</option>
+                </select>
+                
+                <button type="button" id="abaek-meta-thumb-generate" class="button button-secondary button-large abaek-metabox-btn">
+                    <span class="dashicons dashicons-art"></span>
+                    썸네일 생성
+                </button>
+                
+                <div id="abaek-meta-thumb-preview" class="abaek-metabox-thumb-preview" style="display:none;">
+                    <img id="abaek-meta-thumb-img" src="" alt="Thumbnail">
+                    <p class="abaek-metabox-thumb-info">
+                        <span id="abaek-meta-thumb-size">0 KB</span>
+                    </p>
+                </div>
+            </div>
+            
+            <div class="abaek-metabox-divider"></div>
+            
+            <div id="abaek-meta-progress" class="abaek-metabox-progress" style="display:none;">
+                <div class="abaek-metabox-progress-icon">⏳</div>
+                <p id="abaek-meta-progress-text" class="abaek-metabox-progress-text">AI 생성 중...</p>
+                <div class="abaek-metabox-progress-bar">
+                    <div id="abaek-meta-progress-fill" class="abaek-metabox-progress-fill"></div>
+                </div>
+                <p id="abaek-meta-progress-percent" class="abaek-metabox-progress-percent">0%</p>
+            </div>
+            
+            <div id="abaek-meta-result" class="abaek-metabox-result" style="display:none;">
+                <div class="abaek-metabox-result-header">
+                    <span class="dashicons dashicons-yes-alt"></span>
+                    생성 완료!
+                </div>
+                <div class="abaek-metabox-scores">
+                    <div class="abaek-metabox-score">
+                        <span class="score-label">SEO</span>
+                        <span class="score-value" id="abaek-meta-score-seo">-</span>
+                    </div>
+                    <div class="abaek-metabox-score">
+                        <span class="score-label">수익</span>
+                        <span class="score-value" id="abaek-meta-score-revenue">-</span>
+                    </div>
+                    <div class="abaek-metabox-score">
+                        <span class="score-label">승인</span>
+                        <span class="score-value" id="abaek-meta-score-approval">-</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="abaek-metabox-footer">
+                <p class="abaek-metabox-tip">
+                    💡 <strong>팁:</strong> 제목을 먼저 입력하면 더 좋은 콘텐츠가 생성됩니다.
+                </p>
+                <a href="<?php echo admin_url('admin.php?page=ai-abaek-posting'); ?>" class="abaek-metabox-link">
+                    전체 기능 보기 →
+                </a>
+            </div>
+            
+        </div>
+        
+        <style>
+        .abaek-metabox-wrap {
+            margin: -6px -12px -12px;
+        }
+        
+        .abaek-metabox-section {
+            padding: 15px;
+        }
+        
+        .abaek-metabox-label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-weight: 600;
+            font-size: 13px;
+            margin-bottom: 10px;
+            color: #1d2327;
+        }
+        
+        .abaek-metabox-label .dashicons {
+            font-size: 16px;
+            width: 16px;
+            height: 16px;
+        }
+        
+        .abaek-metabox-select,
+        .abaek-metabox-textarea {
+            width: 100%;
+            margin-bottom: 10px;
+        }
+        
+        .abaek-metabox-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+        
+        .abaek-metabox-select-small {
+            width: 100%;
+        }
+        
+        .abaek-metabox-btn {
+            width: 100%;
+            height: auto !important;
+            padding: 10px !important;
+            margin-bottom: 8px !important;
+            display: flex !important;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            font-weight: 600 !important;
+        }
+        
+        .abaek-metabox-btn .dashicons {
+            font-size: 16px;
+            width: 16px;
+            height: 16px;
+        }
+        
+        .abaek-metabox-divider {
+            height: 1px;
+            background: #dcdcde;
+            margin: 0;
+        }
+        
+        .abaek-metabox-thumb-preview {
+            margin-top: 10px;
+            border: 2px dashed #dcdcde;
+            border-radius: 4px;
+            padding: 10px;
+            text-align: center;
+        }
+        
+        .abaek-metabox-thumb-preview img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 4px;
+        }
+        
+        .abaek-metabox-thumb-info {
+            margin: 8px 0 0 0;
+            font-size: 12px;
+            color: #50575e;
+        }
+        
+        .abaek-metabox-progress {
+            padding: 20px 15px;
+            text-align: center;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .abaek-metabox-progress-icon {
+            font-size: 32px;
+            margin-bottom: 10px;
+            animation: abaek-rotate 2s linear infinite;
+        }
+        
+        @keyframes abaek-rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        
+        .abaek-metabox-progress-text {
+            font-weight: 600;
+            margin: 0 0 10px 0;
+        }
+        
+        .abaek-metabox-progress-bar {
+            height: 6px;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 10px;
+            overflow: hidden;
+            margin-bottom: 8px;
+        }
+        
+        .abaek-metabox-progress-fill {
+            height: 100%;
+            background: white;
+            border-radius: 10px;
+            transition: width 0.5s ease;
+            width: 0%;
+        }
+        
+        .abaek-metabox-progress-percent {
+            font-size: 18px;
+            font-weight: 700;
+            margin: 0;
+        }
+        
+        .abaek-metabox-result {
+            padding: 15px;
+            background: #f0fdf4;
+            border-left: 4px solid #22c55e;
+        }
+        
+        .abaek-metabox-result-header {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-weight: 600;
+            font-size: 14px;
+            color: #166534;
+            margin-bottom: 12px;
+        }
+        
+        .abaek-metabox-scores {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+        }
+        
+        .abaek-metabox-score {
+            text-align: center;
+            padding: 8px;
+            background: white;
+            border-radius: 4px;
+        }
+        
+        .score-label {
+            display: block;
+            font-size: 11px;
+            color: #6b7280;
+            margin-bottom: 4px;
+        }
+        
+        .score-value {
+            display: block;
+            font-size: 18px;
+            font-weight: 700;
+            color: #667eea;
+        }
+        
+        .abaek-metabox-footer {
+            padding: 15px;
+            background: #f9fafb;
+        }
+        
+        .abaek-metabox-tip {
+            font-size: 12px;
+            line-height: 1.5;
+            color: #6b7280;
+            margin: 0 0 10px 0;
+        }
+        
+        .abaek-metabox-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 12px;
+            font-weight: 600;
+            color: #667eea;
+            text-decoration: none;
+        }
+        
+        .abaek-metabox-link:hover {
+            color: #5568d3;
+        }
+        </style>
+        <?php
     }
     
     public function render_main_page() {
@@ -500,6 +834,34 @@ class AI_Abaek_Posting {
         ]);
         
         wp_send_json_success($stats);
+    }
+    
+    public function ajax_insert_to_editor() {
+        check_ajax_referer('abaek_nonce', 'nonce');
+        
+        $post_id = intval($_POST['post_id']);
+        $title = sanitize_text_field($_POST['title']);
+        $content = wp_kses_post($_POST['content']);
+        $thumbnail_id = isset($_POST['thumbnail_id']) ? intval($_POST['thumbnail_id']) : 0;
+        
+        // 제목 업데이트
+        wp_update_post([
+            'ID' => $post_id,
+            'post_title' => $title,
+            'post_content' => $content
+        ]);
+        
+        // 썸네일 설정
+        if ($thumbnail_id > 0) {
+            set_post_thumbnail($post_id, $thumbnail_id);
+        }
+        
+        // 통계 업데이트
+        $this->update_stats($content);
+        
+        wp_send_json_success([
+            'message' => '에디터에 삽입되었습니다.'
+        ]);
     }
 }
 
