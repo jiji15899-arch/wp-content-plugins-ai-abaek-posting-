@@ -44,14 +44,24 @@
     }
     
     /**
-     * 메타박스 콘텐츠 생성
+     * 메타박스 콘텐츠 생성 (수정된 버전)
      */
     async function generateMetaboxContent(isQuick) {
-        const title = $('#title').val().trim() || $('#post-title-0').val().trim();
+        // [수정] 1순위: 메타박스 주제 입력창 (#abaek-meta-topic), 2순위: 워드프레스 제목 필드
+        const metaTopic = $('#abaek-meta-topic').val() ? $('#abaek-meta-topic').val().trim() : '';
+        const wpTitle = $('#title').val() || $('#post-title-0').val();
+        
+        // 메타박스 주제가 있으면 그것을, 없으면 WP 제목을 사용
+        const title = metaTopic || (wpTitle ? wpTitle.trim() : '');
         
         if (!title) {
-            alert('먼저 글 제목을 입력하세요.');
-            $('#title, #post-title-0').focus();
+            alert('먼저 글 주제나 제목을 입력하세요.');
+            // 메타박스 내 주제 입력칸이 있다면 그곳으로 포커스 이동, 없다면 기본 제목창으로 이동
+            if ($('#abaek-meta-topic').length > 0) {
+                $('#abaek-meta-topic').focus();
+            } else {
+                $('#title, #post-title-0').focus();
+            }
             return;
         }
         
@@ -72,6 +82,7 @@
         }, isQuick ? 200 : 500);
         
         try {
+            // 프롬프트 생성 (기존 함수 활용)
             const prompt = buildPrompt(title, mode, language, length, isQuick, [], []);
             
             updateMetaboxProgressText('Puter AI 생성 중...');
@@ -579,12 +590,10 @@
         // 광고 HTML 생성
         const adBlocks = adCodes.map((ad, idx) => {
             return `
-<!-- wp:html -->
 <div class="abaek-ad-block abaek-ad-${ad.type}" style="margin: 30px auto; max-width: 728px; padding: 20px; background: #f9f9f9; border-radius: 8px; text-align: center;">
     <div style="font-size: 11px; color: #999; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px;">Advertisement</div>
     ${ad.code}
 </div>
-<!-- /wp:html -->
 `;
         });
         
