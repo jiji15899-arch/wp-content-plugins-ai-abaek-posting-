@@ -70,11 +70,22 @@ class AI_Abaek_Posting {
             ABAEK_VERSION
         );
         
+        // [수정됨] 의존성 스크립트 정의
+        $script_deps = ['jquery', 'puter-js'];
+        
+        // 글쓰기 화면(Gutenberg)일 경우 WP 코어 스크립트 추가
+        if ('post.php' === $hook || 'post-new.php' === $hook) {
+            $script_deps[] = 'wp-blocks';
+            $script_deps[] = 'wp-element';
+            $script_deps[] = 'wp-editor';
+            $script_deps[] = 'wp-data';
+        }
+
         // 플러그인 스크립트
         wp_enqueue_script(
             'abaek-admin-js',
             ABAEK_PLUGIN_URL . 'assets/admin.js',
-            ['jquery', 'puter-js'],
+            $script_deps, // 수정된 의존성 적용
             ABAEK_VERSION,
             true
         );
@@ -97,8 +108,6 @@ class AI_Abaek_Posting {
             'high'
         );
     }
-    
-    // ... 기존 코드 위쪽 생략 ...
 
     public function render_metabox($post) {
         wp_nonce_field('abaek_metabox', 'abaek_metabox_nonce');
@@ -219,135 +228,30 @@ class AI_Abaek_Posting {
         </div>
         
         <style>
-        /* 메타박스 전용 반응형 스타일 */
-        .abaek-metabox-wrap {
-            margin: -6px -12px -12px;
-            background: #fff;
-        }
-        
-        .abaek-metabox-section {
-            padding: 12px;
-        }
-
-        .abaek-metabox-group {
-            margin-bottom: 15px;
-        }
-        
-        .abaek-metabox-label {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            font-weight: 600;
-            font-size: 13px;
-            margin-bottom: 8px;
-            color: #1d2327;
-        }
-        
-        .abaek-metabox-input,
-        .abaek-metabox-select,
-        .abaek-metabox-textarea {
-            width: 100%;
-            padding: 8px;
-            border: 1px solid #dcdcde;
-            border-radius: 4px;
-            box-sizing: border-box;
-            font-size: 13px;
-            margin-bottom: 5px;
-        }
-
-        .abaek-metabox-input:focus,
-        .abaek-metabox-select:focus,
-        .abaek-metabox-textarea:focus {
-            border-color: #2271b1;
-            box-shadow: 0 0 0 1px #2271b1;
-            outline: none;
-        }
-
-        .abaek-metabox-desc {
-            font-size: 11px;
-            color: #646970;
-            margin: 2px 0 0 0;
-        }
-        
-        /* 반응형 Row: 좁을 땐 세로, 넓을 땐 가로 */
-        .abaek-metabox-row {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            margin-bottom: 10px;
-        }
-        
-        .abaek-metabox-select-half {
-            flex: 1 1 120px; /* 최소 120px, 공간 남으면 늘어남 */
-            width: auto;
-            min-width: 0; /* Flexbox overflow 방지 */
-            margin-bottom: 0;
-        }
-        
-        .abaek-btn-group {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-
-        .abaek-metabox-btn {
-            width: 100%;
-            justify-content: center;
-            margin: 0 !important;
-            height: 36px !important;
-            line-height: 34px !important;
-        }
-        
-        .abaek-metabox-divider {
-            height: 1px;
-            background: #f0f0f1;
-            margin: 0;
-        }
-        
-        /* 썸네일 미리보기 */
-        .abaek-metabox-thumb-preview {
-            margin-top: 10px;
-            border: 1px dashed #c3c4c7;
-            border-radius: 4px;
-            padding: 8px;
-            text-align: center;
-            background: #f6f7f7;
-        }
-        
-        .abaek-metabox-thumb-preview img {
-            max-width: 100%;
-            height: auto;
-            border-radius: 4px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        }
-
-        /* 점수판 */
-        .abaek-metabox-scores {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 5px;
-        }
-        
-        .abaek-metabox-score {
-            text-align: center;
-            padding: 6px;
-            background: white;
-            border: 1px solid #dcdcde;
-            border-radius: 4px;
-        }
-
-        /* 로딩바 */
-        .abaek-metabox-progress {
-            padding: 20px;
-            text-align: center;
-            background: #f0f0f1;
-        }
+        /* 메타박스 스타일 유지 */
+        .abaek-metabox-wrap { margin: -6px -12px -12px; background: #fff; }
+        .abaek-metabox-section { padding: 12px; }
+        .abaek-metabox-group { margin-bottom: 15px; }
+        .abaek-metabox-label { display: flex; align-items: center; gap: 6px; font-weight: 600; font-size: 13px; margin-bottom: 8px; color: #1d2327; }
+        .abaek-metabox-input, .abaek-metabox-select, .abaek-metabox-textarea { width: 100%; padding: 8px; border: 1px solid #dcdcde; border-radius: 4px; box-sizing: border-box; font-size: 13px; margin-bottom: 5px; }
+        .abaek-metabox-input:focus, .abaek-metabox-select:focus, .abaek-metabox-textarea:focus { border-color: #2271b1; box-shadow: 0 0 0 1px #2271b1; outline: none; }
+        .abaek-metabox-desc { font-size: 11px; color: #646970; margin: 2px 0 0 0; }
+        .abaek-metabox-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+        .abaek-metabox-select-half { flex: 1 1 120px; width: auto; min-width: 0; margin-bottom: 0; }
+        .abaek-btn-group { display: flex; flex-direction: column; gap: 8px; }
+        .abaek-metabox-btn { width: 100%; justify-content: center; margin: 0 !important; height: 36px !important; line-height: 34px !important; }
+        .abaek-metabox-divider { height: 1px; background: #f0f0f1; margin: 0; }
+        .abaek-metabox-thumb-preview { margin-top: 10px; border: 1px dashed #c3c4c7; border-radius: 4px; padding: 8px; text-align: center; background: #f6f7f7; }
+        .abaek-metabox-thumb-preview img { max-width: 100%; height: auto; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .abaek-metabox-scores { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; }
+        .abaek-metabox-score { text-align: center; padding: 6px; background: white; border: 1px solid #dcdcde; border-radius: 4px; }
+        .abaek-metabox-progress { padding: 20px; text-align: center; background: #f0f0f1; }
         </style>
         <?php
     }
-// ... 기존 코드 아래 생략 ...//
     
     public function render_main_page() {
+        // 메인 페이지 내용은 기존과 동일
         ?>
         <div class="wrap abaek-wrap">
             <div class="abaek-header">
@@ -361,7 +265,6 @@ class AI_Abaek_Posting {
             <div class="abaek-container">
                 <div class="abaek-main-content">
                     
-                    <!-- 콘텐츠 생성 섹션 -->
                     <div class="abaek-card">
                         <div class="abaek-card-header">
                             <h2>📝 콘텐츠 생성</h2>
@@ -441,7 +344,6 @@ class AI_Abaek_Posting {
                                 </div>
                             </div>
                             
-                            <!-- 광고 코드 섹션 -->
                             <div id="ad-section" class="abaek-ad-section" style="display:none;">
                                 <div class="abaek-section-header">
                                     <h3>📢 광고 코드 설정</h3>
@@ -515,7 +417,6 @@ class AI_Abaek_Posting {
                         </div>
                     </div>
                     
-                    <!-- 썸네일 생성 섹션 -->
                     <div class="abaek-card">
                         <div class="abaek-card-header">
                             <h2>🎨 썸네일 생성</h2>
@@ -567,7 +468,6 @@ class AI_Abaek_Posting {
                         </div>
                     </div>
                     
-                    <!-- 미리보기 / 결과 섹션 -->
                     <div id="preview-section" class="abaek-card" style="display:none;">
                         <div class="abaek-card-header">
                             <h2>👁️ 콘텐츠 미리보기</h2>
@@ -601,10 +501,8 @@ class AI_Abaek_Posting {
                     
                 </div>
                 
-                <!-- 사이드바 -->
                 <div class="abaek-sidebar">
                     
-                    <!-- 진행 상태 -->
                     <div id="progress-card" class="abaek-card abaek-progress-card" style="display:none;">
                         <div class="abaek-card-body">
                             <div class="progress-icon">⏳</div>
@@ -617,7 +515,6 @@ class AI_Abaek_Posting {
                         </div>
                     </div>
                     
-                    <!-- 통계 -->
                     <div class="abaek-card">
                         <div class="abaek-card-header">
                             <h3>📊 사용 통계</h3>
@@ -638,7 +535,6 @@ class AI_Abaek_Posting {
                         </div>
                     </div>
                     
-                    <!-- 팁 -->
                     <div class="abaek-card">
                         <div class="abaek-card-header">
                             <h3>💡 사용 팁</h3>
@@ -662,8 +558,6 @@ class AI_Abaek_Posting {
     
     public function ajax_generate_content() {
         check_ajax_referer('abaek_nonce', 'nonce');
-        
-        // 프론트엔드에서 Puter.js로 처리
         wp_send_json_success(['message' => 'Use Puter.js on client-side']);
     }
     
@@ -806,17 +700,5 @@ function abaek_activate() {
     
     if (!file_exists($abaek_dir)) {
         wp_mkdir_p($abaek_dir);
-    }
-    
-    // Create CSS file
-    $css_content = file_get_contents(dirname(__FILE__) . '/assets/admin.css');
-    if ($css_content === false) {
-        // CSS will be created separately
-    }
-    
-    // Create JS file
-    $js_content = file_get_contents(dirname(__FILE__) . '/assets/admin.js');
-    if ($js_content === false) {
-        // JS will be created separately
     }
 }
